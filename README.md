@@ -98,14 +98,14 @@ TRACK|Bohemian Rhapsody|Queen|Spotify
 
 ## Current Status
 
-✅ **Working:**
+**Working:**
 - Serial communication between PC and Pico
 - Multi-media player detection
 - Track display on OLED with app name
 - Manual test script for verification
 - Pico runs independently (no mpremote run needed)
 
-⚠️ **Limitations:**
+**Limitations:**
 - Uses window title detection (works best with visible windows)
 - Requires media players to be running on the same Windows machine
 - Window title detection may not work if players are minimized to tray
