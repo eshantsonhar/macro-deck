@@ -130,16 +130,22 @@ py pc/spotify_bridge.py
 - **Current Project Status:** main.py has been restored to this commit and is ready for upload after physical recovery
 
 ### MicroPython Firmware
-- **Version:** v1.28.0 (tested, recommended)
+- **Version:** v1.28.0 (used during BOOTSEL test)
 - **File:** `backups/firmware/RPI_PICO_W-20260406-v1.28.0.uf2`
 - **Size:** 1,749,504 bytes
 - **SHA256:** A0210C9C8A085391CB66F530C298A5A4FB804A9D072289254C24DF5FDF210F7A
+- **Release Date:** 2026-04-06
 - **Source:** https://micropython.org/download/RPI_PICO_W/
+- **Verified:** Downloaded from official source, SHA256 verified
 
 ### Alternative Firmware (v1.29.0)
 - **File:** `backups/firmware/RPI_PICO_W-20260824-v1.29.0.uf2`
-- **Note:** Downloaded but not verified for this project
+- **Size:** 1,811,456 bytes
+- **SHA256:** F918C0A082C6DAF53E27998B7F990BA5F065DB2E298B21A34024532A20786794
+- **Release Date:** 2026-08-24
 - **Source:** https://micropython.org/download/RPI_PICO_W/
+- **Verified:** Downloaded from official source, SHA256 verified
+- **Note:** Latest stable release, available but not used during BOOTSEL test
 
 ## Prevention
 

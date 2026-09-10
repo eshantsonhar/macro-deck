@@ -2,23 +2,31 @@
 
 ## Tested Firmware
 
-### v1.28.0 (Recommended)
+### v1.28.0 (Used During BOOTSEL Test)
 - **Filename:** RPI_PICO_W-20260406-v1.28.0.uf2
 - **Size:** 1,749,504 bytes
 - **SHA256:** A0210C9C8A085391CB66F530C298A5A4FB804A9D072289254C24DF5FDF210F7A
 - **Release Date:** 2026-04-06
 - **Source:** https://micropython.org/download/RPI_PICO_W/
-- **Status:** Downloaded, tested, working baseline
-- **Notes:** This version was tested and should be used for this project
+- **Status:** Downloaded from official source, SHA256 verified
+- **Notes:** This version was flashed during BOOTSEL test. The filename date format (20260406) matches the v1.28.0 release date (April 6, 2026).
 
-### v1.29.0
+### v1.29.0 (Latest)
 - **Filename:** RPI_PICO_W-20260824-v1.29.0.uf2
 - **Size:** 1,811,456 bytes
 - **SHA256:** F918C0A082C6DAF53E27998B7F990BA5F065DB2E298B21A34024532A20786794
 - **Release Date:** 2026-08-24
 - **Source:** https://micropython.org/download/RPI_PICO_W/
-- **Status:** Downloaded but not verified for this project
-- **Notes:** Latest stable release, downloaded during recovery investigation
+- **Status:** Downloaded from official source, SHA256 verified
+- **Notes:** Latest stable release, downloaded during recovery investigation but NOT used during BOOTSEL test
+
+## Verification
+
+Both UF2 files have been downloaded from the official MicroPython server and their SHA256 hashes have been verified against the source files. The filename date format (YYYYMMDD) corresponds to the release date of each version:
+- v1.28.0: Released 2026-04-06 → filename RPI_PICO_W-20260406-v1.28.0.uf2
+- v1.29.0: Released 2026-08-24 → filename RPI_PICO_W-20260824-v1.29.0.uf2
+
+There is no "RPI_PICO_W-20260824-v1.28.0.uf2" - that filename would imply a v1.28.0 release dated August 24, 2026, which does not exist.
 
 ## Important Notes
 
