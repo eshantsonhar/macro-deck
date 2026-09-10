@@ -1,39 +1,50 @@
-﻿param(
-    [switch]$Run,
-    [switch]$Reboot
+﻿# Pico Firmware Upload Script
+# Usage: .\upload.ps1 [-Reset]
+
+param(
+    [switch]$Reset
 )
 
-$ErrorActionPreference = "Stop"
+$mainPy = "$PSScriptRoot\main.py"
+$comPort = "COM4"
 
-$Port = "COM4"
-$Root = Split-Path -Parent $PSScriptRoot
-
+Write-Host "=== Pico Firmware Upload ===" -ForegroundColor Cyan
+Write-Host "Firmware: $mainPy"
+Write-Host "COM Port: $comPort"
 Write-Host ""
-Write-Host "Uploading Pico W firmware..." -ForegroundColor Cyan
 
-py -m mpremote connect $Port fs cp "$Root\main.py" :main.py
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Upload failed." -ForegroundColor Red
+# Check if main.py exists
+if (-not (Test-Path $mainPy)) {
+    Write-Host "ERROR: main.py not found at $mainPy" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Upload successful." -ForegroundColor Green
+# Upload firmware
+Write-Host "Uploading main.py to Pico..." -ForegroundColor Yellow
+py -m mpremote connect $comPort fs cp $mainPy :main.py
 
-if ($Run) {
-
-    Write-Host ""
-    Write-Host "Running main.py..." -ForegroundColor Cyan
-
-    py -m mpremote connect $Port run "$Root\main.py"
-
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Upload failed" -ForegroundColor Red
+    exit 1
 }
-elseif ($Reboot) {
+Write-Host "Upload complete!" -ForegroundColor Green
 
-    Write-Host ""
-    Write-Host "Rebooting Pico..." -ForegroundColor Cyan
-
-    py -m mpremote connect $Port reset
+# Reset if requested
+if ($Reset) {
+    Write-Host "Resetting Pico..." -ForegroundColor Yellow
+    py -m mpremote connect $comPort reset
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARNING: Reset command failed (may be expected)" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Reset complete!" -ForegroundColor Green
+    }
 }
 
 Write-Host ""
+Write-Host "=== Upload Complete ===" -ForegroundColor Green
+Write-Host "Pico is now running the new firmware."
+Write-Host "You can now start the PC bridge:"
+Write-Host "  py pc\spotify_bridge.py"
+Write-Host ""
+Write-Host "NOTE: Do NOT use 'mpremote run' for deployment as it holds COM4 open."
