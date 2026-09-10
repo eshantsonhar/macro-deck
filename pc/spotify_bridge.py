@@ -40,40 +40,67 @@ def get_media_from_window_title():
         lines = result.stdout.strip().split('\n')
 
         # Media player patterns and their name extraction logic
+        # Browsers are prioritized to avoid mini-player windows
         media_patterns = {
+            'vivaldi': {
+                'pattern': r'(.+)',  # Match any content in Vivaldi
+                'app_name': 'Browser',
+                'priority': 10  # Highest priority for browsers
+            },
+            'chrome': {
+                'pattern': r'(.+)',  # Match any content in Chrome
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'msedge': {
+                'pattern': r'(.+)',  # Match any content in Edge
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'firefox': {
+                'pattern': r'(.+)',  # Match any content in Firefox
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'brave': {
+                'pattern': r'(.+)',  # Match any content in Brave
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'opera': {
+                'pattern': r'(.+)',  # Match any content in Opera
+                'app_name': 'Browser',
+                'priority': 10
+            },
             'spotify': {
                 'pattern': r'(.+?)\s*-\s*(.+?)(?:\s*-\s*Spotify)?$',
-                'app_name': 'Spotify'
+                'app_name': 'Spotify',
+                'priority': 5  # Lower priority to avoid mini-player
             },
             'vlc': {
                 'pattern': r'(.+?)\s*-\s*VLC',
-                'app_name': 'VLC'
+                'app_name': 'VLC',
+                'priority': 5
             },
             'wmplayer': {
                 'pattern': r'(.+?)\s*-\s*Windows Media Player',
-                'app_name': 'WMP'
-            },
-            'chrome': {
-                'pattern': r'(.+?)\s*-\s*YouTube',
-                'app_name': 'YouTube'
-            },
-            'msedge': {
-                'pattern': r'(.+?)\s*-\s*YouTube',
-                'app_name': 'YouTube'
-            },
-            'firefox': {
-                'pattern': r'(.+?)\s*-\s*YouTube',
-                'app_name': 'YouTube'
+                'app_name': 'WMP',
+                'priority': 5
             },
             'mpc': {
                 'pattern': r'(.+?)\s*-\s*MPC',
-                'app_name': 'MPC'
+                'app_name': 'MPC',
+                'priority': 5
             },
             'potplayer': {
                 'pattern': r'(.+?)\s*-\s*PotPlayer',
-                'app_name': 'PotPlayer'
+                'app_name': 'PotPlayer',
+                'priority': 5
             }
         }
+
+        # Collect all potential media windows with their priorities
+        potential_media = []
 
         for line in lines:
             line = line.strip()
@@ -94,8 +121,50 @@ def get_media_from_window_title():
                     match = re.search(config['pattern'], window_title, re.IGNORECASE)
                     if match:
                         track = match.group(1).strip()
-                        artist = match.group(2).strip() if len(match.groups()) > 1 else config['app_name']
-                        return track, artist, config['app_name']
+                        # For browser media, try to extract artist from the title
+                        if config['app_name'] == 'Browser':
+                            # Filter out common non-media browser pages
+                            skip_keywords = ['start page', 'new tab', 'settings', 'google', 'bing', 'github', 'stackoverflow', 'reddit', 'twitter', 'facebook', 'instagram', 'linkedin', 'devin', 'quota', 'troubleshooting']
+                            if any(skip in window_title.lower() for skip in skip_keywords):
+                                continue
+
+                            # Look for patterns like "Song - Artist - YouTube" or "Song - Artist - Spotify"
+                            if ' - ' in window_title:
+                                parts = window_title.split(' - ')
+                                if len(parts) >= 2:
+                                    track = parts[0].strip()
+                                    artist = parts[1].strip()
+                                    # Remove service name from artist if present
+                                    for service in ['YouTube', 'Spotify', 'Music']:
+                                        artist = artist.replace(service, '').strip()
+                            else:
+                                # Try to parse "Song Artist" format (space separated)
+                                parts = window_title.split()
+                                if len(parts) >= 2:
+                                    # Assume first part is track, rest is artist
+                                    track = parts[0]
+                                    artist = ' '.join(parts[1:])
+                                    # Clean up weird characters
+                                    artist = ''.join(c for c in artist if c.isprintable())
+                                else:
+                                    artist = config['app_name']
+                        else:
+                            artist = match.group(2).strip() if len(match.groups()) > 1 else config['app_name']
+
+                        # Add to potential media with priority
+                        potential_media.append({
+                            'track': track,
+                            'artist': artist,
+                            'app': config['app_name'],
+                            'priority': config['priority'],
+                            'window_title': window_title
+                        })
+
+        # Sort by priority (highest first) and return the best match
+        if potential_media:
+            potential_media.sort(key=lambda x: x['priority'], reverse=True)
+            best_match = potential_media[0]
+            return best_match['track'], best_match['artist'], best_match['app']
 
             # Generic pattern for any window with " - " separator
             if ' - ' in window_title and len(window_title) < 100:  # Reasonable length
@@ -104,7 +173,7 @@ def get_media_from_window_title():
                     track = parts[0].strip()
                     artist = parts[1].strip()
                     # Filter out common non-media windows
-                    skip_keywords = ['microsoft', 'visual studio', 'explorer', 'desktop', 'devin', 'notepad', 'code', 'terminal', 'powershell', 'command prompt', 'vivaldi', 'chrome', 'firefox', 'edge', 'brave', 'opera', 'gemini', 'google', 'bing', 'settings']
+                    skip_keywords = ['microsoft', 'visual studio', 'explorer', 'desktop', 'devin', 'notepad', 'code', 'terminal', 'powershell', 'command prompt', 'vivaldi', 'chrome', 'firefox', 'edge', 'brave', 'opera', 'gemini', 'google', 'bing', 'settings', 'outlook', 'inbox', 'mail', 'calendar', 'teams', 'word', 'excel', 'powerpoint', 'onedrive', 'sharepoint']
                     if not any(skip in window_title.lower() for skip in skip_keywords):
                         return track, artist, "Media"
 

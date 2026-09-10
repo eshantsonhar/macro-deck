@@ -1,7 +1,6 @@
-from machine import Pin, I2C
+from machine import Pin, I2C, USB_VCP
 import framebuf
 import time
-import sys
 
 # ============================================================
 # OLED
@@ -74,12 +73,18 @@ def clear():
 
 
 # ============================================================
-# SERIAL COMMUNICATION
+# SERIAL COMMUNICATION (USB CDC)
 # ============================================================
+
+def usb_write(data):
+    """Write to USB CDC serial (COM4)"""
+    sys.stdout.write(data)
+    sys.stdout.flush()
 
 current_track = "No Track"
 current_artist = "Playing"
 current_app = ""
+serial_buffer = ""
 
 
 def parse_serial_message(line):
@@ -102,16 +107,33 @@ def parse_serial_message(line):
 
 def check_serial_input():
     """
-    Check for serial input from stdin (mpremote USB serial)
+    Check for serial input from USB CDC
+    """
+    global serial_buffer
+
+    try:
+        if sys.stdin.any():
+            data = sys.stdin.read()
+            if data:
+                serial_buffer += data
+                # Process all complete lines
+                while '\n' in serial_buffer:
+                    line, serial_buffer = serial_buffer.split('\n', 1)
+                    line = line.strip()
+                    if line and parse_serial_message(line):
+                        show_screen()
+    except Exception:
+        pass
+
+
+def send_encoder_event(event):
+    """
+    Send encoder event to PC
+    Format: ENCODER_CW, ENCODER_CCW, ENCODER_SW
     """
     try:
-        line = sys.stdin.readline()
-        if line:
-            line = line.strip()
-            if line and parse_serial_message(line):
-                print(f"Received: {current_track} - {current_artist}")
-                show_screen()
-    except:
+        usb_write(f"{event}\n")
+    except Exception:
         pass
 
 
@@ -168,7 +190,6 @@ def show_screen():
 
     if current_app:
         oled.text(f"[{current_app}]", 0, 48)
-        oled.text(event, 0, 56)
     else:
         oled.text(event, 0, 48)
 
@@ -219,12 +240,9 @@ while True:
                 encoder_position += 1
                 encoder_count = 0
 
-                event = "Encoder: CW"
+                event = "Volume: +"
 
-                print(
-                    "Encoder CW | Position:",
-                    encoder_position
-                )
+                send_encoder_event("ENCODER_CW")
 
                 show_screen()
 
@@ -233,12 +251,9 @@ while True:
                 encoder_position -= 1
                 encoder_count = 0
 
-                event = "Encoder: CCW"
+                event = "Volume: -"
 
-                print(
-                    "Encoder CCW | Position:",
-                    encoder_position
-                )
+                send_encoder_event("ENCODER_CCW")
 
                 show_screen()
 
@@ -257,7 +272,7 @@ while True:
 
             event = "Button " + str(i + 1)
 
-            print("Button", i + 1, "pressed")
+            send_encoder_event(f"BUTTON_{i + 1}")
 
             show_screen()
 
@@ -272,9 +287,9 @@ while True:
 
     if sw == 0 and last_sw == 1:
 
-        event = "Encoder SW"
+        event = "Mute Toggle"
 
-        print("Encoder switch pressed")
+        send_encoder_event("ENCODER_SW")
 
         show_screen()
 
