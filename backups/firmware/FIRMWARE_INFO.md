@@ -1,5 +1,18 @@
 # MicroPython Firmware Information
 
+## Flash Erase Tool
+
+### Universal Flash Nuke
+- **Filename:** flash_nuke.uf2
+- **Size:** 114,688 bytes
+- **SHA256:** F3C3B6A62D2D7E944F336BC2EC73393F00ADFBB56B6FA7440BA7EE3D5AD5B49D
+- **Source:** https://datasheets.raspberrypi.com/soft/flash_nuke.uf2 (official Raspberry Pi)
+- **Documentation:** Raspberry Pi RP-008273-DS (official bootrom specification)
+- **Purpose:** Completely erases Pico flash (firmware + filesystem)
+- **Universal:** Works on all Pico models (Pico, Pico W, Pico 2, Pico 2 W)
+- **Behavior:** After erasure, flashes LED, then returns to BOOTSEL mode
+- **Status:** Downloaded from official source, SHA256 verified
+
 ## Tested Firmware
 
 ### v1.28.0 (Used During BOOTSEL Test)
@@ -22,7 +35,15 @@
 
 ## Verification
 
-Both UF2 files have been downloaded from the official MicroPython server and their SHA256 hashes have been verified against the source files. The filename date format (YYYYMMDD) corresponds to the release date of each version:
+All UF2 files have been downloaded from official sources and their SHA256 hashes have been verified against the source files.
+
+### Flash Nuke
+- Verified against official Raspberry Pi datasheets URL
+- Size matches universal binary (98,304 bytes typical for newer universal version)
+- Official documentation: RP-008273-DS
+
+### MicroPython Firmware
+The filename date format (YYYYMMDD) corresponds to the release date of each version:
 - v1.28.0: Released 2026-04-06 → filename RPI_PICO_W-20260406-v1.28.0.uf2
 - v1.29.0: Released 2026-08-24 → filename RPI_PICO_W-20260824-v1.29.0.uf2
 

@@ -147,6 +147,22 @@ py pc/spotify_bridge.py
 - **Verified:** Downloaded from official source, SHA256 verified
 - **Note:** Latest stable release, available but not used during BOOTSEL test
 
+## Physical Recovery Procedure
+
+For the complete, step-by-step physical recovery procedure, see **[RECOVERY_PROCEDURE.md](RECOVERY_PROCEDURE.md)**.
+
+That document contains:
+- Pre-recovery checklist
+- Exact files required with SHA256 hashes
+- Step-by-step physical recovery instructions
+- Windows commands after Pico returns
+- Clean REPL verification
+- Hardware verification checklist
+- Recovery success criteria
+- Rollback and emergency notes
+
+**DO NOT execute the recovery until you have read and understood RECOVERY_PROCEDURE.md.**
+
 ## Prevention
 
 ### Firmware Design Principles
