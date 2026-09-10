@@ -45,22 +45,27 @@
 ## Exact Physical Steps
 
 ### Step 1: Enter BOOTSEL Mode
-1. Hold the BOOTSEL button on the Pico W
-2. Connect the USB cable (or press RESET if already connected)
-3. Windows should show RPI-RP2 drive appears
-4. Note: This is the ONLY physical interaction required
+1. While the Pico W is connected to the PC, press and hold the BOOTSEL button
+2. While continuing to hold BOOTSEL, press the RESET button on the Pico W
+3. Release the RESET button while still holding BOOTSEL
+4. Wait 1-2 seconds, then release the BOOTSEL button
+5. Windows should show the RPI-RP2 drive appears in File Explorer
+6. **Continue to Step 2 only when RPI-RP2 drive is visible**
+7. Note: This is the ONLY physical button interaction required for the entire recovery
 
 ### Step 2: Erase Flash
 1. Open Windows Explorer
 2. Navigate to RPI-RP2 drive
 3. Copy `backups\firmware\flash_nuke.uf2` to RPI-RP2 drive
-4. Wait ~10 seconds for Pico to process and reboot
-5. RPI-RP2 drive will reappear (flash is now erased)
-6. **Critical:** At this point, the Pico has NO firmware and NO filesystem
+4. Wait ~10 seconds for Pico to process the erase operation
+5. The Pico LED will flash briefly to indicate erase completion
+6. RPI-RP2 drive will remain visible (flash_nuke automatically returns to BOOTSEL mode)
+7. **Critical:** At this point, the Pico has NO firmware and NO filesystem
+8. **Do NOT re-enter BOOTSEL mode** - the drive is already ready for MicroPython installation
 
 ### Step 3: Install MicroPython v1.28.0
 1. RPI-RP2 drive should still be visible from Step 2
-2. Copy `backups\firmware\RPI_PICO_W-20260406-v1.28.0.uf2` to RPI-RPI-RP2 drive
+2. Copy `backups\firmware\RPI_PICO_W-20260406-v1.28.0.uf2` to RPI-RP2 drive
 3. Wait ~5 seconds for Pico to reboot
 4. RPI-RP2 drive will disappear
 5. Pico is now running clean MicroPython v1.28.0
@@ -159,7 +164,8 @@ After Steps 5-6, verify hardware functionality:
 ## Rollback/Emergency Notes
 
 ### If Flash Erase Fails
-- Ensure BOOTSEL button is held firmly during USB connection
+- Ensure BOOTSEL button is held firmly while pressing RESET
+- Ensure RESET button is pressed while BOOTSEL is held
 - Try a different USB cable
 - Try a different USB port on PC
 - Check Windows Device Manager for USB enumeration errors
@@ -199,7 +205,8 @@ After recovery, normal development workflow:
 ## Important Notes
 
 - **BOOTSEL is emergency recovery ONLY**, not part of normal development
-- This procedure requires exactly ONE BOOTSEL operation (erasure + MicroPython install)
+- This procedure requires exactly ONE BOOTSEL entry (enter once, perform both erase and MicroPython install while in bootloader mode)
+- The flash_nuke UF2 automatically returns to BOOTSEL mode after erasing, so no second BOOTSEL entry is required
 - The Pico will be left in a clean, verified state
 - All project files are preserved locally with Git
 - Recovery is deterministic and reversible
