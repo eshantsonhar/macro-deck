@@ -230,7 +230,10 @@ while True:
 
                 event = "Encoder: CW"
 
-                print("ENCODER_CW")
+                print(
+                    "Encoder CW | Position:",
+                    encoder_position
+                )
 
                 show_screen()
 
@@ -241,7 +244,10 @@ while True:
 
                 event = "Encoder: CCW"
 
-                print("ENCODER_CCW")
+                print(
+                    "Encoder CCW | Position:",
+                    encoder_position
+                )
 
                 show_screen()
 
@@ -260,7 +266,7 @@ while True:
 
             event = "Button " + str(i + 1)
 
-            print("BUTTON_" + str(i + 1))
+            print("Button", i + 1, "pressed")
 
             show_screen()
 
@@ -277,7 +283,7 @@ while True:
 
         event = "Encoder SW"
 
-        print("ENCODER_SW")
+        print("Encoder switch pressed")
 
         show_screen()
 

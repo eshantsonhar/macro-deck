@@ -228,7 +228,7 @@ while True:
                 encoder_position += 1
                 encoder_count = 0
 
-                event = "Encoder: CW"
+                event = "Volume: +"
 
                 print("ENCODER_CW")
 
@@ -239,7 +239,7 @@ while True:
                 encoder_position -= 1
                 encoder_count = 0
 
-                event = "Encoder: CCW"
+                event = "Volume: -"
 
                 print("ENCODER_CCW")
 
@@ -260,7 +260,7 @@ while True:
 
             event = "Button " + str(i + 1)
 
-            print("BUTTON_" + str(i + 1))
+            print(f"BUTTON_{i + 1}")
 
             show_screen()
 
@@ -275,7 +275,7 @@ while True:
 
     if sw == 0 and last_sw == 1:
 
-        event = "Encoder SW"
+        event = "Mute Toggle"
 
         print("ENCODER_SW")
 
