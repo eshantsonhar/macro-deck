@@ -12,6 +12,7 @@ import re
 import string
 import threading
 import asyncio
+import traceback
 from volume_controller import volume_up, volume_down, volume_mute
 from winsdk.windows.media.control import GlobalSystemMediaTransportControlsSessionManager
 
@@ -292,11 +293,11 @@ def handle_volume_command(line):
         volume_down()
     elif line == "VOLUME|MUTE":
         volume_mute()
-    elif line.startswith("Encoder CW"):
+    elif line == "ENCODER_CW":
         volume_up()
-    elif line.startswith("Encoder CCW"):
+    elif line == "ENCODER_CCW":
         volume_down()
-    elif line == "Encoder switch pressed":
+    elif line == "ENCODER_SW":
         volume_mute()
 
 
@@ -307,33 +308,29 @@ def volume_listener(ser):
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8').strip()
                 if line:
+                    print(f"[VOLUME] Received: {line}")
                     handle_volume_command(line)
-            time.sleep(0.05)  # Slightly longer sleep to reduce CPU usage
+            time.sleep(0.05)
         except Exception as e:
-            print(f"[ERROR] Volume listener: {type(e).__name__}: {e}", flush=True)
+            print(f"[ERROR] Volume listener: {type(e).__name__}: {e}")
             traceback.print_exc()
             break
 
 
 def main():
-    print("[MAIN] entering main", flush=True)
     print("Combined Bridge for Pico W Controller")
     print(f"Connecting to {SERIAL_PORT} at {BAUD_RATE} baud...")
 
     try:
-        print("[MAIN] before Serial()", flush=True)
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1, write_timeout=2)
-        print("[MAIN] after Serial()", flush=True)
         print("Connected to Pico!")
 
         ser.reset_input_buffer()
         ser.reset_output_buffer()
 
-        print("[MAIN] before starting volume listener", flush=True)
         # Start volume listener thread
         volume_thread = threading.Thread(target=volume_listener, args=(ser,), daemon=True)
         volume_thread.start()
-        print("[MAIN] after starting volume listener", flush=True)
 
         last_track = None
         last_artist = None
@@ -343,32 +340,22 @@ def main():
         print("Supports: Spotify, VLC, Windows Media Player, YouTube, and more")
         print("Encoder: Volume control | Press: Mute toggle")
 
-        print("[MAIN] before initial TRACK write", flush=True)
         # Send initial "No Track" message
         ser.write(b"TRACK|No Track|Playing|\n")
-        print("[MAIN] after initial TRACK write", flush=True)
 
         print("[MAIN] entering main loop", flush=True)
         while True:
             try:
-                print("[MAIN] before get_media_from_smtc()", flush=True)
                 track, artist, app_name = get_media_from_smtc()
-                print(f"[MAIN] after get_media_from_smtc()", flush=True)
-                print(f"[MAIN] media result: track={repr(track)} artist={repr(artist)} app={repr(app_name)}", flush=True)
 
-                print("[MAIN] before media comparison", flush=True)
                 if track != last_track or artist != last_artist or app_name != last_app:
-                    print("[MAIN] after media comparison (changed)", flush=True)
                     if track and artist:
                         formatted_track = format_for_oled(track)
                         formatted_artist = format_for_oled(artist)
                         formatted_app = format_for_oled(app_name) if app_name else ""
                         message = f"TRACK|{formatted_track}|{formatted_artist}|{formatted_app}\n"
 
-                        print("[MAIN] before TRACK write", flush=True)
-                        print(f"[MAIN] TRACK message: {repr(message)}", flush=True)
                         ser.write(message.encode('utf-8'))
-                        print("[MAIN] after TRACK write", flush=True)
                         print(f"Media: {formatted_track} - {formatted_artist} [{formatted_app}]")
                         last_track = track
                         last_artist = artist
@@ -380,12 +367,8 @@ def main():
                             last_track = None
                             last_artist = None
                             last_app = None
-                else:
-                    print("[MAIN] after media comparison (unchanged)", flush=True)
 
-                print("[MAIN] before sleep", flush=True)
                 time.sleep(POLL_INTERVAL)
-                print("[MAIN] after sleep", flush=True)
 
             except KeyboardInterrupt:
                 print("\nStopping...")
