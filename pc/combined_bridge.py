@@ -11,6 +11,7 @@ import sys
 import re
 import string
 import threading
+from volume_controller import volume_up, volume_down, volume_mute
 
 SERIAL_PORT = "COM4"
 BAUD_RATE = 115200
@@ -153,11 +154,17 @@ def toggle_mute():
 def handle_volume_command(line):
     """Handle volume command from Pico"""
     if line == "VOLUME|UP":
-        change_volume("UP")
+        volume_up()
     elif line == "VOLUME|DOWN":
-        change_volume("DOWN")
+        volume_down()
     elif line == "VOLUME|MUTE":
-        toggle_mute()
+        volume_mute()
+    elif line.startswith("Encoder CW"):
+        volume_up()
+    elif line.startswith("Encoder CCW"):
+        volume_down()
+    elif line == "Encoder switch pressed":
+        volume_mute()
 
 
 def volume_listener(ser):
