@@ -1,7 +1,6 @@
 from machine import Pin, I2C
 import framebuf
 import time
-import sys
 
 # ============================================================
 # OLED
@@ -74,57 +73,6 @@ def clear():
 
 
 # ============================================================
-# SERIAL COMMUNICATION
-# ============================================================
-
-current_track = "No Track"
-current_artist = "Playing"
-current_app = ""
-serial_buffer = ""
-
-
-def parse_serial_message(line):
-    """
-    Parse serial message from PC bridge
-    Format: TRACK|song name|artist name|app name
-    """
-    global current_track, current_artist, current_app
-
-    if line.startswith("TRACK|"):
-        parts = line.split("|")
-        if len(parts) >= 3:
-            current_track = parts[1]
-            current_artist = parts[2]
-            current_app = parts[3] if len(parts) >= 4 else ""
-            return True
-
-    return False
-
-
-def check_serial_input():
-    """
-    Check for serial input from USB CDC
-    Non-blocking: read one character at a time
-    """
-    global serial_buffer
-
-    try:
-        if sys.stdin.any():
-            # Read one character at a time to avoid blocking
-            char = sys.stdin.read(1)
-            if char:
-                serial_buffer += char
-                # Process all complete lines
-                while '\n' in serial_buffer:
-                    line, serial_buffer = serial_buffer.split('\n', 1)
-                    line = line.strip()
-                    if line and parse_serial_message(line):
-                        show_screen()
-    except Exception:
-        pass
-
-
-# ============================================================
 # HARDWARE
 # ============================================================
 
@@ -164,22 +112,16 @@ encoder_position = 0
 # DISPLAY
 # ============================================================
 
-event = "Ready"
+event = "Hardware Test"
 
 
 def show_screen():
     clear()
 
-    oled.text("Now Playing:", 0, 0)
-
-    oled.text(current_track, 0, 16)
-    oled.text(current_artist, 0, 32)
-
-    if current_app:
-        oled.text(f"[{current_app}]", 0, 48)
-        oled.text(event, 0, 56)
-    else:
-        oled.text(event, 0, 48)
+    oled.text("Hardware Test:", 0, 0)
+    oled.text("Pos: " + str(encoder_position), 0, 16)
+    oled.text("Event: " + event, 0, 32)
+    oled.text("Press any button", 0, 48)
 
     oled_show()
 
@@ -196,12 +138,6 @@ last_button_states = [1] * 10
 last_sw = 1
 
 while True:
-
-    # --------------------------------------------------------
-    # SERIAL INPUT
-    # --------------------------------------------------------
-
-    check_serial_input()
 
     # --------------------------------------------------------
     # ENCODER
@@ -229,12 +165,6 @@ while True:
                 encoder_count = 0
 
                 event = "Encoder: CW"
-
-                print(
-                    "Encoder CW | Position:",
-                    encoder_position
-                )
-
                 show_screen()
 
             elif encoder_count <= -2:
@@ -243,12 +173,6 @@ while True:
                 encoder_count = 0
 
                 event = "Encoder: CCW"
-
-                print(
-                    "Encoder CCW | Position:",
-                    encoder_position
-                )
-
                 show_screen()
 
         last_state = current_state
@@ -265,9 +189,6 @@ while True:
         if state == 0 and last_button_states[i] == 1:
 
             event = "Button " + str(i + 1)
-
-            print("Button", i + 1, "pressed")
-
             show_screen()
 
         last_button_states[i] = state
@@ -282,9 +203,6 @@ while True:
     if sw == 0 and last_sw == 1:
 
         event = "Encoder SW"
-
-        print("Encoder switch pressed")
-
         show_screen()
 
     last_sw = sw
