@@ -11,7 +11,9 @@ import sys
 import re
 import string
 import threading
+import asyncio
 from volume_controller import volume_up, volume_down, volume_mute
+from winsdk.windows.media.control import GlobalSystemMediaTransportControlsSessionManager
 
 SERIAL_PORT = "COM4"
 BAUD_RATE = 115200
@@ -19,9 +21,62 @@ POLL_INTERVAL = 2
 VOLUME_STEP = 2
 
 
-def get_media_from_browsers():
-    """Get currently playing media from browser tabs"""
+async def get_media_from_smtc_async():
+    """
+    Get currently playing media from Windows Global System Media Transport Controls.
+    This works for background tabs in browsers like Vivaldi.
+    """
     try:
+        manager = await GlobalSystemMediaTransportControlsSessionManager.request_async()
+        sessions = manager.get_sessions()
+
+        # Prefer Vivaldi session
+        vivaldi_aumid = "Vivaldi.Z5DLQOUXBXTNP4UT4UK7IYQSGM"
+        vivaldi_session = None
+
+        for session in sessions:
+            if session.source_app_user_model_id == vivaldi_aumid:
+                vivaldi_session = session
+                break
+
+        # If Vivaldi found, use it; otherwise use current session
+        target_session = vivaldi_session if vivaldi_session else manager.get_current_session()
+
+        if target_session:
+            # Check playback status
+            playback_info = target_session.get_playback_info()
+            if playback_info.playback_status == 4:  # Playing
+                # Get media properties
+                props = await target_session.try_get_media_properties_async()
+                if props and props.title and props.artist:
+                    return props.title, props.artist, "Vivaldi"
+
+        return None, None, None
+    except Exception as e:
+        print(f"[ERROR] SMTC async: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
+        return None, None, None
+
+
+def get_media_from_smtc():
+    """
+    Synchronous wrapper for SMTC media detection.
+    """
+    try:
+        return asyncio.run(get_media_from_smtc_async())
+    except Exception as e:
+        print(f"[ERROR] SMTC wrapper: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
+        return None, None, None
+
+
+def get_media_from_window_title():
+    """
+    Get currently playing media from window titles across multiple players.
+    Supports Spotify, Windows Media Player, VLC, YouTube (browser), etc.
+    """
+    try:
+        # Get all window titles from processes
         ps_command = """
         Get-Process | Where-Object {$_.MainWindowTitle -ne ""} |
         Select-Object ProcessName, MainWindowTitle
@@ -36,20 +91,75 @@ def get_media_from_browsers():
 
         lines = result.stdout.strip().split('\n')
 
-        browser_patterns = {
-            'vivaldi': 'Vivaldi',
-            'chrome': 'Chrome',
-            'msedge': 'Edge',
-            'firefox': 'Firefox',
-            'brave': 'Brave',
-            'opera': 'Opera'
+        # Media player patterns and their name extraction logic
+        # Browsers are prioritized to avoid mini-player windows
+        media_patterns = {
+            'vivaldi': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'chrome': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'msedge': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'firefox': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'brave': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'opera': {
+                'pattern': r'(.+)',
+                'app_name': 'Browser',
+                'priority': 10
+            },
+            'spotify': {
+                'pattern': r'(.+?)\s*-\s*(.+?)(?:\s*-\s*Spotify)?$',
+                'app_name': 'Spotify',
+                'priority': 5
+            },
+            'vlc': {
+                'pattern': r'(.+?)\s*-\s*VLC',
+                'app_name': 'VLC',
+                'priority': 5
+            },
+            'wmplayer': {
+                'pattern': r'(.+?)\s*-\s*Windows Media Player',
+                'app_name': 'WMP',
+                'priority': 5
+            },
+            'mpc': {
+                'pattern': r'(.+?)\s*-\s*MPC',
+                'app_name': 'MPC',
+                'priority': 5
+            },
+            'potplayer': {
+                'pattern': r'(.+?)\s*-\s*PotPlayer',
+                'app_name': 'PotPlayer',
+                'priority': 5
+            }
         }
+
+        # Collect all potential media windows with their priorities
+        potential_media = []
 
         for line in lines:
             line = line.strip()
             if not line or 'ProcessName' in line or '---' in line:
                 continue
 
+            # Extract process name and window title
             parts = line.split(None, 1)
             if len(parts) < 2:
                 continue
@@ -57,49 +167,72 @@ def get_media_from_browsers():
             process_name = parts[0].lower().strip()
             window_title = parts[1].strip()
 
-            for browser, display_name in browser_patterns.items():
-                if browser in process_name:
-                    skip_keywords = ['start page', 'new tab', 'settings', 'google.com', 'bing.com', 'github.com', 'stackoverflow.com', 'reddit.com', 'twitter.com', 'facebook.com', 'instagram.com', 'linkedin.com', 'devin', 'quota', 'troubleshooting']
-                    if any(skip in window_title.lower() for skip in skip_keywords):
-                        continue
+            # Check if this is a known media player
+            for player, config in media_patterns.items():
+                if player in process_name:
+                    match = re.search(config['pattern'], window_title, re.IGNORECASE)
+                    if match:
+                        track = match.group(1).strip()
+                        # For browser media, try to extract artist from the title
+                        if config['app_name'] == 'Browser':
+                            # Filter out common non-media browser pages
+                            skip_keywords = ['start page', 'new tab', 'settings', 'google', 'bing', 'github', 'stackoverflow', 'reddit', 'twitter', 'facebook', 'instagram', 'linkedin', 'devin', 'quota', 'troubleshooting']
+                            if any(skip in window_title.lower() for skip in skip_keywords):
+                                continue
 
-                    # Handle different separators including special characters
-                    allowed_chars = set(string.ascii_letters + string.digits + ' -.,\'')
-                    special_chars = [c for c in window_title if c not in allowed_chars and c != ' ']
-
-                    if special_chars:
-                        sep = special_chars[0]
-                        parts = window_title.split(sep)
-                        if len(parts) >= 2:
-                            track = parts[0].strip()
-                            if len(parts) > 2:
-                                artist = sep.join(parts[1:-1]).strip()
+                            # Look for patterns like "Song - Artist - YouTube" or "Song - Artist - Spotify"
+                            if ' - ' in window_title:
+                                parts = window_title.split(' - ')
+                                if len(parts) >= 2:
+                                    track = parts[0].strip()
+                                    artist = parts[1].strip()
+                                    # Remove service name from artist if present
+                                    for service in ['YouTube', 'Spotify', 'Music']:
+                                        artist = artist.replace(service, '').strip()
                             else:
-                                artist = parts[1].strip()
-                            for browser_name in ['Vivaldi', 'Chrome', 'Edge', 'Firefox', 'Brave', 'Opera']:
-                                artist = artist.replace(browser_name, '').strip()
-                            artist = artist.rstrip('-').strip()
-                            return track, artist, display_name
-                    elif ' - ' in window_title:
-                        title_parts = window_title.split(' - ')
-                        if len(title_parts) >= 2:
-                            track = title_parts[0].strip()
-                            artist = title_parts[1].strip()
-                            for service in ['YouTube', 'Spotify', 'Music']:
-                                artist = artist.replace(service, '').strip()
-                            return track, artist, display_name
-                    else:
-                        parts = window_title.split()
-                        if len(parts) >= 2:
-                            track = parts[0]
-                            artist = ' '.join(parts[1:])
-                            artist = ''.join(c for c in artist if c.isprintable())
-                            return track, artist, display_name
+                                # Try to parse "Song Artist" format (space separated)
+                                parts = window_title.split()
+                                if len(parts) >= 2:
+                                    # Assume first part is track, rest is artist
+                                    track = parts[0]
+                                    artist = ' '.join(parts[1:])
+                                    # Clean up weird characters
+                                    artist = ''.join(c for c in artist if c.isprintable())
+                                else:
+                                    artist = config['app_name']
+                        else:
+                            artist = match.group(2).strip() if len(match.groups()) > 1 else config['app_name']
+
+                        # Add to potential media with priority
+                        potential_media.append({
+                            'track': track,
+                            'artist': artist,
+                            'app': config['app_name'],
+                            'priority': config['priority'],
+                            'window_title': window_title
+                        })
+
+        # Sort by priority (highest first) and return the best match
+        if potential_media:
+            potential_media.sort(key=lambda x: x['priority'], reverse=True)
+            best_match = potential_media[0]
+            return best_match['track'], best_match['artist'], best_match['app']
+
+            # Generic pattern for any window with " - " separator
+            if ' - ' in window_title and len(window_title) < 100:  # Reasonable length
+                parts = window_title.split(' - ')
+                if len(parts) >= 2:
+                    track = parts[0].strip()
+                    artist = parts[1].strip()
+                    # Filter out common non-media windows
+                    skip_keywords = ['microsoft', 'visual studio', 'explorer', 'desktop', 'devin', 'notepad', 'code', 'terminal', 'powershell', 'command prompt', 'vivaldi', 'chrome', 'firefox', 'edge', 'brave', 'opera', 'gemini', 'google', 'bing', 'settings', 'outlook', 'inbox', 'mail', 'calendar', 'teams', 'word', 'excel', 'powerpoint', 'onedrive', 'sharepoint']
+                    if not any(skip in window_title.lower() for skip in skip_keywords):
+                        return track, artist, "Media"
 
         return None, None, None
 
     except Exception as e:
-        print(f"Error getting browser media: {e}")
+        print(f"Error getting media window: {e}")
         return None, None, None
 
 
@@ -177,46 +310,65 @@ def volume_listener(ser):
                     handle_volume_command(line)
             time.sleep(0.05)  # Slightly longer sleep to reduce CPU usage
         except Exception as e:
-            print(f"Volume listener error: {e}")
+            print(f"[ERROR] Volume listener: {type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
             break
 
 
 def main():
+    print("[MAIN] entering main", flush=True)
     print("Combined Bridge for Pico W Controller")
     print(f"Connecting to {SERIAL_PORT} at {BAUD_RATE} baud...")
 
     try:
-        ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+        print("[MAIN] before Serial()", flush=True)
+        ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1, write_timeout=2)
+        print("[MAIN] after Serial()", flush=True)
         print("Connected to Pico!")
 
         ser.reset_input_buffer()
         ser.reset_output_buffer()
 
+        print("[MAIN] before starting volume listener", flush=True)
         # Start volume listener thread
         volume_thread = threading.Thread(target=volume_listener, args=(ser,), daemon=True)
         volume_thread.start()
+        print("[MAIN] after starting volume listener", flush=True)
 
         last_track = None
         last_artist = None
         last_app = None
 
         print("Monitoring media and volume... (Ctrl+C to stop)")
+        print("Supports: Spotify, VLC, Windows Media Player, YouTube, and more")
         print("Encoder: Volume control | Press: Mute toggle")
 
+        print("[MAIN] before initial TRACK write", flush=True)
         # Send initial "No Track" message
         ser.write(b"TRACK|No Track|Playing|\n")
+        print("[MAIN] after initial TRACK write", flush=True)
 
+        print("[MAIN] entering main loop", flush=True)
         while True:
             try:
-                track, artist, app_name = get_media_from_browsers()
+                print("[MAIN] before get_media_from_smtc()", flush=True)
+                track, artist, app_name = get_media_from_smtc()
+                print(f"[MAIN] after get_media_from_smtc()", flush=True)
+                print(f"[MAIN] media result: track={repr(track)} artist={repr(artist)} app={repr(app_name)}", flush=True)
 
+                print("[MAIN] before media comparison", flush=True)
                 if track != last_track or artist != last_artist or app_name != last_app:
+                    print("[MAIN] after media comparison (changed)", flush=True)
                     if track and artist:
                         formatted_track = format_for_oled(track)
                         formatted_artist = format_for_oled(artist)
                         formatted_app = format_for_oled(app_name) if app_name else ""
                         message = f"TRACK|{formatted_track}|{formatted_artist}|{formatted_app}\n"
+
+                        print("[MAIN] before TRACK write", flush=True)
+                        print(f"[MAIN] TRACK message: {repr(message)}", flush=True)
                         ser.write(message.encode('utf-8'))
+                        print("[MAIN] after TRACK write", flush=True)
                         print(f"Media: {formatted_track} - {formatted_artist} [{formatted_app}]")
                         last_track = track
                         last_artist = artist
@@ -228,14 +380,19 @@ def main():
                             last_track = None
                             last_artist = None
                             last_app = None
+                else:
+                    print("[MAIN] after media comparison (unchanged)", flush=True)
 
+                print("[MAIN] before sleep", flush=True)
                 time.sleep(POLL_INTERVAL)
+                print("[MAIN] after sleep", flush=True)
 
             except KeyboardInterrupt:
                 print("\nStopping...")
                 break
             except Exception as e:
-                print(f"Error in media loop: {e}")
+                print(f"[ERROR] Media loop: {type(e).__name__}: {e}", flush=True)
+                traceback.print_exc()
                 time.sleep(POLL_INTERVAL)
 
     except serial.SerialException as e:

@@ -1,0 +1,6 @@
+Combined Bridge for Pico W Controller
+Connecting to COM4 at 115200 baud...
+Connected to Pico!
+Monitoring media and volume... (Ctrl+C to stop)
+Supports: Spotify, VLC, Windows Media Player, YouTube, and more
+Encoder: Volume control | Press: Mute toggle
